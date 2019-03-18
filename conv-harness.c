@@ -1,3 +1,5 @@
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>
@@ -6,7 +8,6 @@
 #include <math.h>
 #include <stdint.h>
 #include <x86intrin.h>
-
 
 /* the following two definitions of DEBUGGING control whether or not
    debugging information is written out. To put the program into
@@ -238,63 +239,9 @@ void team_conv(int16_t *** image, int16_t **** kernels, float *** output,
 {
   // this call here is just dummy code
   // insert your own code instead
-  int h, w, x, y, c, m;
-  printf("vectorizing on nchannels\n");
-  int i, j, k, l;
-  float **** newKernels = new_empty_4d_matrix_float(nkernels, kernel_order, kernel_order,nchannels);
-  #pragma omp parallel for private(i, k, j, l) collapse(4)
-  for( i = 0; i < nkernels; i++)
-  {
-    for( j = 0; j < nchannels; j++)
-    {
-      for( k = 0; k < kernel_order; k++)
-      {
-        for( l = 0; l < kernel_order; l++ )
-        {
-          newKernels[i][k][l][j] = kernels[i][j][k][l];
-        }
-      }
-    }
-  }
-  #pragma omp parallel for private(w, h, m, c, x, y) shared(output, image, kernels) collapse(3) if(width * height * nchannels > 3000)
-  for ( m = 0; m < nkernels; m++ )
-  {
-    for ( w = 0; w < height; w++ )
-    {
-      for ( h = 0; h < width; h++ )
-      {
-        double sum = 0.0;
-        for ( c = 0; c + 4 <= nchannels; c+=4 )
-        {
-          for ( x = 0; x < kernel_order; x++)
-          {
-            for ( y = 0; y < kernel_order; y++ )
-            {
-              __m128 img = _mm_loadu_ps(&image[w+x][h+y][c]);
-              __m128 ker = _mm_loadu_ps(&newKernels[m][x][y][c]);
-              __m128 sum4 = _mm_mul_ps(img, ker);
-              sum += hsum_ps_sse3(sum4);
-            }
-          }
-        }
-        for(;c < nchannels; c++)
-        {
-          for ( x = 0; x < kernel_order; x++)
-          {
-            for ( y = 0; y < kernel_order; y++ )
-            {
-              sum += image[w+x][h+y][c] * newKernels[m][x][y][c];
-            }
-          }
-        }
-        output[m][w][h] = sum;
-      }
-    }
-  }
-
-  }
-
-
+  multichannel_conv(image, kernels, output, width,
+                    height, nchannels, nkernels, kernel_order);
+}
 
 int main(int argc, char ** argv)
 {

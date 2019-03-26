@@ -403,6 +403,18 @@ int main(int argc, char ** argv)
   /* use a simple multichannel convolution routine to produce control result */
   multichannel_conv(image, kernels, control_output, width,
                     height, nchannels, nkernels, kernel_order);
+  /* for testing take this out when done */
+  	long long mul_timec;
+  	struct timeval start_timec;
+    struct timeval stop_timec;
+    gettimeofday(&start_timec, NULL);
+    multichannel_conv(image, kernels, control_output, width,
+                      height, nchannels, nkernels, kernel_order);
+    gettimeofday(&stop_timec, NULL);
+  	mul_timec = (stop_timec.tv_sec - start_timec.tv_sec) * 1000000L +
+      (stop_timec.tv_usec - start_timec.tv_usec);
+    printf("Cont conv time: %lld microseconds\n", mul_timec);
+  	/* end */
 
   /* record starting time of team's code*/
   gettimeofday(&start_time, NULL);

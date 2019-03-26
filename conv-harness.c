@@ -378,7 +378,7 @@ int main(int argc, char ** argv)
   DEBUGGING(write_out(output, nkernels, width, height));
   /* for testing take this out when done */
 	double speedup;
-	speedup = 1-((double) mul_time/(double) mul_timec)*100;
+	speedup = (1-((double) mul_time/(double) mul_timec))*100;
   printf("Speedup: %f\n", speedup);
 	/* end */
   /* now check that the team's multichannel convolution routine

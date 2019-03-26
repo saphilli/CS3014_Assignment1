@@ -341,7 +341,7 @@ void team_conv(float *** image, int16_t **** kernels, float *** output,
 						for ( c = 0; c < nchannels; c++ ) {
 							for ( x = 0; x < kernel_order; x++) {
                 //reduction
-								#pragma omp parallel for reduction(+:sum)
+			          #pragma omp parallel simd reduction(+:sum)
 								for ( y = 0; y < kernel_order; y++) {
               		sum += image[w+x][h+y][c] * fkernels[m][x][y][c];
 								}
@@ -432,7 +432,7 @@ int main(int argc, char ** argv)
   DEBUGGING(write_out(output, nkernels, width, height));
   /* for testing take this out when done */
 	double speedup;
-	speedup = (double) mul_timec/(double) mul_time;
+	speedup = (1-((double) mul_time/(double) mul_timec))*100;
   printf("Speedup: %f\n", speedup);
 	/* end */
   /* now check that the team's multichannel convolution routine

@@ -34,6 +34,7 @@
 #include <omp.h>
 #include <math.h>
 #include <stdint.h>
+#include <math.h>
 
 /* the following two definitions of DEBUGGING control whether or not
    debugging information is written out. To put the program into
@@ -264,7 +265,7 @@ void team_conv(int16_t *** image, int16_t **** kernels, float *** output,
                int kernel_order)
 {
   int h, w, x, y, c, m, hh, ww;
-	int tile_size = pow(2,floor(width/100));
+	int tile_size = (int) pow(2,floor(width/100));
 	int i, j, k, l;
   int16_t **** fkernels = new_empty_4d_matrix_int16(nkernels, kernel_order, kernel_order,nchannels);
 	for( i = 0; i < nkernels; i++){

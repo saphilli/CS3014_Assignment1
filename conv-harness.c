@@ -264,7 +264,7 @@ void team_conv(int16_t *** image, int16_t **** kernels, float *** output,
                int kernel_order)
 {
   int h, w, x, y, c, m, hh, ww;
-	int block = 32;
+	int block = 2;
 	int i, j, k, l;
   int16_t **** fkernels = new_empty_4d_matrix_int16(nkernels, kernel_order, kernel_order,nchannels);
 	for( i = 0; i < nkernels; i++){

@@ -1,4 +1,33 @@
+/* Test and timing harness program for developing a multichannel
+   multikernel convolution (as used in deep learning networks)
 
+   Note there are some simplifications around this implementation,
+   in particular with respect to computing the convolution at edge
+   pixels of the image.
+
+   Author: David Gregg
+   Date:   March 2019
+
+   Version 1.6 : Modified the code so that the input tensor is float
+
+   Version 1.5 : Modified the code so that the input and kernel
+                 are tensors of 16-bit integer values
+
+   Version 1.4 : Modified the random generator to reduce the range
+                 of generated values;
+
+   Version 1.3 : Fixed which loop variables were being incremented
+                 in write_out();
+                 Fixed dimensions of output and control_output
+                 matrices in main function
+
+   Version 1.2 : Changed distribution of test data to (hopefully)
+                 eliminate random walk of floating point error;
+                 Also introduced checks to restrict kernel-order to
+                 a small set of values
+
+   Version 1.1 : Fixed bug in code to create 4d matrix
+*/
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -7,7 +36,6 @@
 #include <omp.h>
 #include <math.h>
 #include <stdint.h>
-#include <x86intrin.h>
 
 /* the following two definitions of DEBUGGING control whether or not
    debugging information is written out. To put the program into
@@ -141,7 +169,7 @@ struct timeval seedtime;
   /* use the microsecond part of the current time as a pseudorandom seed */
   gettimeofday(&seedtime, NULL);
   seed = seedtime.tv_usec;
-  srand(seed);
+  srandom(seed);
 
   /* fill the matrix with random numbers */
   const int range = 1 << 10; // 2^10
@@ -152,10 +180,10 @@ struct timeval seedtime;
       for ( k = 0; k < dim2; k++ ) {
         for ( l = 0; l < dim3; l++ ) {
           // generate uniform random integer with mean of zero
-          long long r = rand();
+          long long rand = random();
           // now cut down the range and bias the mean to reduce
           // the likelihood of large floating point round-off errors
-          int reduced_range = (r % range);
+          int reduced_range = (rand % range);
           result[i][j][k][l] = reduced_range;
         }
       }
@@ -163,6 +191,59 @@ struct timeval seedtime;
   }
 
   return result;
+}
+
+
+/* create a matrix and fill it with random numbers */
+float **** gen_random_4d_matrix_float(int dim0, int dim1, int dim2, int dim3)
+{
+float **** result;
+int i, j, k, l;
+struct timeval seedtime;
+  int seed;
+
+  result = new_empty_4d_matrix_float(dim0, dim1, dim2, dim3);
+
+  /* use the microsecond part of the current time as a pseudorandom seed */
+  gettimeofday(&seedtime, NULL);
+  seed = seedtime.tv_usec;
+  srandom(seed);
+
+  /* fill the matrix with random numbers */
+  const int range = 1 << 12; // 2^12
+  const int bias = 1 << 10; // 2^16
+  int16_t offset = 0.0;
+  for ( i = 0; i < dim0; i++ ) {
+    for ( j = 0; j < dim1; j++ ) {
+      for ( k = 0; k < dim2; k++ ) {
+        for ( l = 0; l < dim3; l++ ) {
+          // generate uniform random integer with mean of zero
+          long long rand = random();
+          // now cut down the range and bias the mean to reduce
+          // the likelihood of large floating point round-off errors
+          int reduced_range = (rand % range);
+          result[i][j][k][l] = reduced_range + bias;
+        }
+      }
+    }
+  }
+
+  return result;
+}
+
+
+/* create a matrix and fill it with random numbers */
+float *** gen_random_3d_matrix_float(int dim0, int dim1, int dim2)
+{
+  float **** mat4d;
+  float *** mat3d;
+
+  // create a 4d matrix with single first dimension
+  mat4d = gen_random_4d_matrix_float(1, dim0, dim1, dim2);
+  // now throw away out first dimension
+  mat3d = mat4d[0];
+  free(mat4d);
+  return mat3d;
 }
 
 /* create a matrix and fill it with random numbers */
@@ -209,12 +290,11 @@ void check_result(float *** result, float *** control,
 }
 
 /* the slow but correct version of matmul written by David */
-void multichannel_conv(int16_t *** image, int16_t **** kernels,
+void multichannel_conv(float *** image, int16_t **** kernels,
 		       float *** output, int width, int height,
 		       int nchannels, int nkernels, int kernel_order)
 {
   int h, w, x, y, c, m;
-
   for ( m = 0; m < nkernels; m++ ) {
     for ( w = 0; w < width; w++ ) {
       for ( h = 0; h < height; h++ ) {
@@ -233,14 +313,46 @@ void multichannel_conv(int16_t *** image, int16_t **** kernels,
 }
 
 /* the fast version of matmul written by the team */
-void team_conv(int16_t *** image, int16_t **** kernels, float *** output,
+void team_conv(float *** image, int16_t **** kernels, float *** output,
                int width, int height, int nchannels, int nkernels,
                int kernel_order)
 {
-  // this call here is just dummy code
-  // insert your own code instead
-  multichannel_conv(image, kernels, output, width,
-                    height, nchannels, nkernels, kernel_order);
+  int h, w, x, y, c, m, hh, ww;
+	int block = 32;
+	int i, j, k, l;
+  float **** fkernels = new_empty_4d_matrix_float(nkernels, kernel_order, kernel_order,nchannels);
+	for( i = 0; i < nkernels; i++){
+    for( j = 0; j < nchannels; j++){
+      for( k = 0; k < kernel_order; k++){
+        for( l = 0; l < kernel_order; l++ ){
+          fkernels[i][k][l][j] = kernels[i][j][k][l];
+        }
+      }
+    }
+  }
+	/* blocked and parallelized matmul */
+	#pragma omp parallel for shared(output, image, kernels) private(h, w, x, y, c, m, ww, hh)
+	for ( m = 0; m < nkernels; m++ ) {
+		for ( ww = 0; ww < width; ww+=block ) {
+			for ( hh = 0; hh < height; hh+=block ) {
+				for ( w = ww; w < ww+block; w++ ) {
+					for ( h = hh; h < hh+block; h++ ) {
+						double sum = 0.0;
+						for ( c = 0; c < nchannels; c++ ) {
+							for ( x = 0; x < kernel_order; x++) {
+                //reduction
+								#pragma omp parallel for reduction(+:sum)
+								for ( y = 0; y < kernel_order; y++) {
+              		sum += image[w+x][h+y][c] * fkernels[m][x][y][c];
+								}
+							}
+							output[m][w][h] = (float) sum;
+						}
+					}
+				}
+			}
+		}
+	}
 }
 
 int main(int argc, char ** argv)
@@ -249,7 +361,8 @@ int main(int argc, char ** argv)
   //float kernels[M][C][K][K];
   //float output[M][W][H];
 
-  int16_t *** image, **** kernels;
+  float *** image;
+  int16_t **** kernels;
   float *** control_output, *** output;
   long long mul_time;
   int width, height, kernel_order, nchannels, nkernels;
@@ -279,7 +392,7 @@ int main(int argc, char ** argv)
   }
 
   /* allocate the matrices */
-  image = gen_random_3d_matrix_int16(width+kernel_order, height + kernel_order,
+  image = gen_random_3d_matrix_float(width+kernel_order, height + kernel_order,
                                nchannels);
   kernels = gen_random_4d_matrix_int16(nkernels, nchannels, kernel_order, kernel_order);
   output = new_empty_3d_matrix_float(nkernels, width, height);

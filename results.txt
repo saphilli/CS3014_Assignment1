@@ -1,0 +1,2 @@
+Running on: LAPTOP-1S7300AT. Values are in microseconds.
+Test running using parameters "256 256 5 64 64" for 50 iterations:

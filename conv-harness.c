@@ -6,9 +6,7 @@
    pixels of the image.
 
    Author: David Gregg
-   Date:   March 2019
-
-   Version 1.6 : Modified the code so that the input tensor is float
+   Date:   February 2019
 
    Version 1.5 : Modified the code so that the input and kernel
                  are tensors of 16-bit integer values
@@ -193,59 +191,6 @@ struct timeval seedtime;
   return result;
 }
 
-
-/* create a matrix and fill it with random numbers */
-float **** gen_random_4d_matrix_float(int dim0, int dim1, int dim2, int dim3)
-{
-float **** result;
-int i, j, k, l;
-struct timeval seedtime;
-  int seed;
-
-  result = new_empty_4d_matrix_float(dim0, dim1, dim2, dim3);
-
-  /* use the microsecond part of the current time as a pseudorandom seed */
-  gettimeofday(&seedtime, NULL);
-  seed = seedtime.tv_usec;
-  srandom(seed);
-
-  /* fill the matrix with random numbers */
-  const int range = 1 << 12; // 2^12
-  const int bias = 1 << 10; // 2^16
-  int16_t offset = 0.0;
-  for ( i = 0; i < dim0; i++ ) {
-    for ( j = 0; j < dim1; j++ ) {
-      for ( k = 0; k < dim2; k++ ) {
-        for ( l = 0; l < dim3; l++ ) {
-          // generate uniform random integer with mean of zero
-          long long rand = random();
-          // now cut down the range and bias the mean to reduce
-          // the likelihood of large floating point round-off errors
-          int reduced_range = (rand % range);
-          result[i][j][k][l] = reduced_range + bias;
-        }
-      }
-    }
-  }
-
-  return result;
-}
-
-
-/* create a matrix and fill it with random numbers */
-float *** gen_random_3d_matrix_float(int dim0, int dim1, int dim2)
-{
-  float **** mat4d;
-  float *** mat3d;
-
-  // create a 4d matrix with single first dimension
-  mat4d = gen_random_4d_matrix_float(1, dim0, dim1, dim2);
-  // now throw away out first dimension
-  mat3d = mat4d[0];
-  free(mat4d);
-  return mat3d;
-}
-
 /* create a matrix and fill it with random numbers */
 int16_t *** gen_random_3d_matrix_int16(int dim0, int dim1, int dim2)
 {
@@ -290,11 +235,12 @@ void check_result(float *** result, float *** control,
 }
 
 /* the slow but correct version of matmul written by David */
-void multichannel_conv(float *** image, int16_t **** kernels,
+void multichannel_conv(int16_t *** image, int16_t **** kernels,
 		       float *** output, int width, int height,
 		       int nchannels, int nkernels, int kernel_order)
 {
   int h, w, x, y, c, m;
+
   for ( m = 0; m < nkernels; m++ ) {
     for ( w = 0; w < width; w++ ) {
       for ( h = 0; h < height; h++ ) {
@@ -305,7 +251,7 @@ void multichannel_conv(float *** image, int16_t **** kernels,
               sum += (double) image[w+x][h+y][c] * (double) kernels[m][c][x][y];
             }
           }
-          output[m][w][h] =  sum;
+          output[m][w][h] = (float) sum;
         }
       }
     }
@@ -346,7 +292,7 @@ void team_conv(float *** image, int16_t **** kernels, float *** output,
               		sum += image[w+x][h+y][c] * fkernels[m][x][y][c];
 								}
 							}
-							output[m][w][h] = sum;
+							output[m][w][h] = (float) sum;
 						}
 					}
 				}
@@ -401,7 +347,7 @@ int main(int argc, char ** argv)
   //DEBUGGING(write_out(A, a_dim1, a_dim2));
 
   /* use a simple multichannel convolution routine to produce control result */
-   multichannel_conv(image, kernels, control_output, width,
+  multichannel_conv(image, kernels, control_output, width,
                     height, nchannels, nkernels, kernel_order);
   /* for testing take this out when done */
   	long long mul_timec;
@@ -432,7 +378,7 @@ int main(int argc, char ** argv)
   DEBUGGING(write_out(output, nkernels, width, height));
   /* for testing take this out when done */
 	double speedup;
-	speedup = (1-((double) mul_time/(double) mul_timec))*100;
+	speedup = 1-((double) mul_time/(double) mul_timec))*100;
   printf("Speedup: %f\n", speedup);
 	/* end */
   /* now check that the team's multichannel convolution routine

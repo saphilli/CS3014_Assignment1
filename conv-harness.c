@@ -413,7 +413,7 @@ int main(int argc, char ** argv)
     gettimeofday(&stop_timec, NULL);
   	mul_timec = (stop_timec.tv_sec - start_timec.tv_sec) * 1000000L +
       (stop_timec.tv_usec - start_timec.tv_usec);
-    printf("Cont conv time: %lld microseconds\n", mul_timec);
+    printf("Original conv time: %lld microseconds\n", mul_timec);
   	/* end */
 
   /* record starting time of team's code*/
@@ -430,7 +430,11 @@ int main(int argc, char ** argv)
   printf("Team conv time: %lld microseconds\n", mul_time);
 
   DEBUGGING(write_out(output, nkernels, width, height));
-
+  /* for testing take this out when done */
+	double speedup;
+	speedup = (double) mul_timec/(double) mul_time;
+  printf("Speedup: %f\n", speedup);
+	/* end */
   /* now check that the team's multichannel convolution routine
      gives the same answer as the known working version */
   check_result(output, control_output, nkernels, width, height);

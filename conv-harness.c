@@ -307,8 +307,7 @@ int main(int argc, char ** argv)
   //float kernels[M][C][K][K];
   //float output[M][W][H];
 
-  float *** image;
-  int16_t **** kernels;
+  int16_t *** image, **** kernels;
   float *** control_output, *** output;
   long long mul_time;
   int width, height, kernel_order, nchannels, nkernels;
@@ -338,11 +337,12 @@ int main(int argc, char ** argv)
   }
 
   /* allocate the matrices */
-  image = gen_random_3d_matrix_float(width+kernel_order, height + kernel_order,
-                               nchannels);
-  kernels = gen_random_4d_matrix_int16(nkernels, nchannels, kernel_order, kernel_order);
-  output = new_empty_3d_matrix_float(nkernels, width, height);
-  control_output = new_empty_3d_matrix_float(nkernels, width, height);
+ image = gen_random_3d_matrix_int16(width+kernel_order, height + kernel_order,
+                              nchannels);
+ kernels = gen_random_4d_matrix_int16(nkernels, nchannels, kernel_order, kernel_order);
+ output = new_empty_3d_matrix_float(nkernels, width, height);
+ control_output = new_empty_3d_matrix_float(nkernels, width, height);
+
 
   //DEBUGGING(write_out(A, a_dim1, a_dim2));
 

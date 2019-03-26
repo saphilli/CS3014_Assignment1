@@ -259,14 +259,14 @@ void multichannel_conv(int16_t *** image, int16_t **** kernels,
 }
 
 /* the fast version of matmul written by the team */
-void team_conv(float *** image, int16_t **** kernels, float *** output,
+void team_conv(int16_t *** image, int16_t **** kernels, float *** output,
                int width, int height, int nchannels, int nkernels,
                int kernel_order)
 {
   int h, w, x, y, c, m, hh, ww;
 	int block = 32;
 	int i, j, k, l;
-  float **** fkernels = new_empty_4d_matrix_float(nkernels, kernel_order, kernel_order,nchannels);
+  int16_t **** fkernels = new_empty_4d_matrix_int16(nkernels, kernel_order, kernel_order,nchannels);
 	for( i = 0; i < nkernels; i++){
     for( j = 0; j < nchannels; j++){
       for( k = 0; k < kernel_order; k++){
@@ -378,7 +378,7 @@ int main(int argc, char ** argv)
   DEBUGGING(write_out(output, nkernels, width, height));
   /* for testing take this out when done */
 	double speedup;
-	speedup = 1-((double) mul_time/(double) mul_timec))*100;
+	speedup = 1-((double) mul_time/(double) mul_timec)*100;
   printf("Speedup: %f\n", speedup);
 	/* end */
   /* now check that the team's multichannel convolution routine

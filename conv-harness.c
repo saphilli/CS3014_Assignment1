@@ -305,7 +305,7 @@ void multichannel_conv(float *** image, int16_t **** kernels,
               sum += (double) image[w+x][h+y][c] * (double) kernels[m][c][x][y];
             }
           }
-          output[m][w][h] = (float) sum;
+          output[m][w][h] =  sum;
         }
       }
     }
@@ -346,7 +346,7 @@ void team_conv(float *** image, int16_t **** kernels, float *** output,
               		sum += image[w+x][h+y][c] * fkernels[m][x][y][c];
 								}
 							}
-							output[m][w][h] = (float) sum;
+							output[m][w][h] = sum;
 						}
 					}
 				}
@@ -401,7 +401,7 @@ int main(int argc, char ** argv)
   //DEBUGGING(write_out(A, a_dim1, a_dim2));
 
   /* use a simple multichannel convolution routine to produce control result */
-  multichannel_conv(image, kernels, control_output, width,
+   multichannel_conv(image, kernels, control_output, width,
                     height, nchannels, nkernels, kernel_order);
   /* for testing take this out when done */
   	long long mul_timec;

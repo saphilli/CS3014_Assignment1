@@ -264,7 +264,7 @@ void team_conv(int16_t *** image, int16_t **** kernels, float *** output,
                int kernel_order)
 {
   int h, w, x, y, c, m, hh, ww;
-	int block = 2;
+	int tile_size = pow(2,floor(width/100));
 	int i, j, k, l;
   int16_t **** fkernels = new_empty_4d_matrix_int16(nkernels, kernel_order, kernel_order,nchannels);
 	for( i = 0; i < nkernels; i++){
@@ -279,10 +279,10 @@ void team_conv(int16_t *** image, int16_t **** kernels, float *** output,
 	/* blocked and parallelized matmul */
 	#pragma omp parallel for shared(output, image, kernels) private(h, w, x, y, c, m, ww, hh)
 	for ( m = 0; m < nkernels; m++ ) {
-		for ( ww = 0; ww < width; ww+=block ) {
-			for ( hh = 0; hh < height; hh+=block ) {
-				for ( w = ww; w < ww+block; w++ ) {
-					for ( h = hh; h < hh+block; h++ ) {
+		for ( ww = 0; ww < width; ww+=tile_size ) {
+			for ( hh = 0; hh < height; hh+=tile_size ) {
+				for ( w = ww; w < ww+tile_size; w++ ) {
+					for ( h = hh; h < hh+tile_size; h++ ) {
 						double sum = 0.0;
 						for ( c = 0; c < nchannels; c++ ) {
 							for ( x = 0; x < kernel_order; x++) {
